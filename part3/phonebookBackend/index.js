@@ -40,7 +40,7 @@ app.get('/', (request, response) => {
 
 app.get('/api/persons', (request, response) => {
   Person.find({}).then(ps => {//ps stands for persons
-    console.log("getting persons")
+    console.log('getting persons')
     response.json(ps)
   })
 })
@@ -55,7 +55,7 @@ app.get('/info', (request, response) => {
 app.get('/api/persons/:id', (request, response, next) => {
   Person.findById(request.params.id)
     .then(person => {
-      console.log("\n HERE \n")
+      console.log('\n HERE \n')
       if (person) {
         response.json(person)
       } else {
@@ -67,7 +67,7 @@ app.get('/api/persons/:id', (request, response, next) => {
 
 app.delete('/api/persons/:id', (request, response, next) => {
   Person.findByIdAndDelete(request.params.id)
-    .then(result => {
+    .then(() => {
       response.status(204).end()
     })
     .catch(error => next(error))
@@ -81,8 +81,8 @@ app.post('/api/persons', (request, response, next) => {
     number: body.number,
   })
   person.save().then(savedPerson => {
-      response.json(savedPerson)
-    })
+    response.json(savedPerson)
+  })
     .catch(error => next(error))
 })
 

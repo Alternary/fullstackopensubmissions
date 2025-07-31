@@ -39,7 +39,7 @@ if (process.argv.length > 3) {
       id: generateId(persons)
     })
 
-    person.save().then(result => {
+    person.save().then(() => {
       console.log('person saved!')
       mongoose.connection.close()
     })
@@ -48,9 +48,9 @@ if (process.argv.length > 3) {
 else {
   //now we will search for persons
   Person.find({}).then(result => {
-    console.log("phonebook")
+    console.log('phonebook')
     result.forEach(person => {
-      console.log(person.name, " ",person.number)
+      console.log(person.name, ' ',person.number)
     })
     mongoose.connection.close()
   })
