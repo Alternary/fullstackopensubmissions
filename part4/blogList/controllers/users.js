@@ -3,12 +3,26 @@ const usersRouter = require('express').Router()
 const User = require('../models/user')
 
 usersRouter.get('/', async (request, response) => {
-  const users = await User.find({})
+  const users = await User
+    .find({})
+    .populate('blogs', { title: 1, author: 1, url: 1, likes: 1 })
   response.json(users)
 })
 
 usersRouter.post('/', async (request, response) => {
   const { username, name, password } = request.body
+
+  users = await User.find({})
+  if (password.length < 3) {
+    return response.status(400).json({ error: 'expected `password` to be longer than three characters' })
+  }
+  if (username.length < 3) {
+    return response.status(400).json({ error: 'expected `username` to be longer than three characters' })
+  }
+  // if username is already taken
+  if (users.map(u => u.username).includes(username)) {
+    return response.status(400).json({ error: 'expected `username` to be unique' })
+  }
 
   const saltRounds = 10
   const passwordHash = await bcrypt.hash(password, saltRounds)
@@ -18,8 +32,6 @@ usersRouter.post('/', async (request, response) => {
     name,
     passwordHash,
   })
-
-  console.log("posting user")
 
   const savedUser = await user.save()
 

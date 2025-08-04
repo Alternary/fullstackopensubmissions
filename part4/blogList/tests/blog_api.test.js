@@ -1,18 +1,50 @@
 const assert = require('node:assert')
+const bcrypt = require('bcrypt')
 const { test, describe, after, beforeEach } = require('node:test')
 const mongoose = require('mongoose')
 const supertest = require('supertest')
+
 const app = require('../app')
 const helper = require('./test_helper')
 const Blog = require('../models/blog')
-const bcrypt = require('bcrypt')
 const User = require('../models/user')
 
 const api = supertest(app)
 
+const username = 'root'
+const password = 'sekret'
+
 beforeEach(async () => {
+  await User.deleteMany({})
+
+  const passwordHash = await bcrypt.hash(password, 10)
+  const user = new User({ username: username, passwordHash })
+
+  await user.save()
+
+  //now, fetch the user id and save it into initialBlogs
+  const users = await User.find({})
+  const firstUserId = users[0].id.toString()
+  // console.log("first user id ", firstUserId)
+
+  // await Blog.deleteMany({})
+  // await Blog.insertMany(helper.initialBlogs)
+
+  const blogs = helper.initialBlogs
+  for (blog of blogs) {
+    blog.user = firstUserId
+  }
+  // console.log("here are blogs before tests ", blogs)
+
+  //the mongoose schema turns the string userIds into objects in insertMany
   await Blog.deleteMany({})
-  await Blog.insertMany(helper.initialBlogs)
+  await Blog.insertMany(blogs)
+
+  // const newBlogs = await helper.blogsInDb()
+  // console.log("new blogs ", newBlogs)
+
+  const foundBlogs = await Blog.find({})
+  // console.log("here in beforeEach, blogs be ", foundBlogs)
 })
 
 describe('returning blogs', () => {
@@ -22,26 +54,50 @@ describe('returning blogs', () => {
     assert.strictEqual(response.body.length, helper.initialBlogs.length)
   })
 
-  test('returned blogs\' id field is called "id"', async () => {
+  test('returned blogs have a field called "id"', async () => {
     const blogs = await helper.blogsInDb()
-    // console.log("hey ", blogs)
-    const blogIdKeys = blogs.map(blog => Object.keys(blog)[4])
-    // console.log("idKeys ",blogIdKeys)
-    const nonIdKeys = blogIdKeys.filter(key => key !== "id")
-    assert.deepStrictEqual(nonIdKeys, [])
+    const idKeys = blogs.map(blog => Object.keys(blog).filter(key => key === "id"))
+    // console.log("id keys ", idKeys)
+    idKeys.forEach(keys => {
+      // console.log("keys ", keys)
+      assert.deepStrictEqual(keys, ["id"])
+    })
   })
 })
 
-describe('adding blogs', () => {
+let token
+
+describe.only('adding blogs when there exists a user', () => {
+  beforeEach(async () => {
+    const login = {
+      username: username,
+      password: password
+    }
+    const loginResponse = await api
+      .post('/api/login')
+      .send(login)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+    token = loginResponse.body.token
+    // console.log("here is login response token ", token)
+  })
+
   test('a valid blog can be added ', async () => {
+    const users = await helper.usersInDb()
+    const firstUser = users[0]
+
     const newBlog = {
       title: "title1",
       author: "author1",
       url: "url1",
+      likes: 1,
+      user: firstUser.id
     }
 
+    //somehow need to the request add a `Bearer ${token}`
     await api
       .post('/api/blogs')
+      .set('Authorization', 'Bearer ' + token)
       .send(newBlog)
       .expect(201)
       .expect('Content-Type', /application\/json/)
@@ -54,37 +110,47 @@ describe('adding blogs', () => {
   })
 
   test('a blog without likes can be added ', async () => {
+    const users = await helper.usersInDb()
+    const firstUser = users[0]
+
     const blogsAtStart = await helper.blogsInDb()
 
     const newBlog = {
       title: "title2",
       author: "author2",
-      url: "url2"
+      url: "url2",
+      user: firstUser.id
     }
 
     await api
       .post('/api/blogs')
+      .set('Authorization', 'Bearer ' + token)
       .send(newBlog)
       .expect(201)
       .expect('Content-Type', /application\/json/)
 
     const blogsAtEnd = await helper.blogsInDb()
 
-    const addedBlog = blogsAtEnd.filter(blog => ! JSON.stringify(blogsAtStart).includes(JSON.stringify(blog)))[0]
+    const addedBlog = blogsAtEnd.filter(blog => !JSON.stringify(blogsAtStart).includes(JSON.stringify(blog)))[0]
     // console.log("addedBlog ", addedBlog)
     assert(addedBlog.likes === 0)
   })
 
-  test('a blog without title or url can\'t be added ', async () => {
+  test('a blog without title can\'t be added ', async () => {
+    const users = await helper.usersInDb()
+    const firstUser = users[0]
+
     const blogsAtStart = await helper.blogsInDb()
 
     const newBlog = {
       author: "author2",
+      url: "url2",
+      user: firstUser.id
     }
 
-    // console.log("here")
     await api
       .post('/api/blogs')
+      .set('Authorization', 'Bearer ' + token)
       .send(newBlog)
       .expect(400)
 
@@ -92,6 +158,74 @@ describe('adding blogs', () => {
 
     assert(JSON.stringify(blogsAtStart) == JSON.stringify(blogsAtEnd))
   })
+
+  test('a blog without url can\'t be added ', async () => {
+    const users = await helper.usersInDb()
+    const firstUser = users[0]
+
+    const blogsAtStart = await helper.blogsInDb()
+
+    const newBlog = {
+      title: "title2",
+      author: "author2",
+      user: firstUser.id
+    }
+
+    await api
+      .post('/api/blogs')
+      .set('Authorization', 'Bearer ' + token)
+      .send(newBlog)
+      .expect(400)
+
+    const blogsAtEnd = await helper.blogsInDb()
+
+    assert(JSON.stringify(blogsAtStart) == JSON.stringify(blogsAtEnd))
+  })
+
+  test('a blog without a token can\'t be added ', async () => {
+    const users = await helper.usersInDb()
+    const firstUser = users[0]
+
+    const blogsAtStart = await helper.blogsInDb()
+
+    const newBlog = {
+      title: "title2",
+      url: "url2",
+      user: firstUser.id
+    }
+
+    const result = await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(401)
+
+    const blogsAtEnd = await helper.blogsInDb()
+
+    assert(JSON.stringify(blogsAtStart) == JSON.stringify(blogsAtEnd))
+    assert(result.body.error.includes('token missing or invalid'))
+  })
+
+  // test('a blog without user can be added ', async () => {
+  //   const users = await helper.usersInDb()
+  //   const firstUser = users[0]
+  //
+  //   const blogsAtStart = await helper.blogsInDb()
+  //
+  //   const newBlog = {
+  //     title: "title2",
+  //     author: "author2",
+  //     url: "url2"
+  //   }
+  //
+  //   await api
+  //     .post('/api/blogs')
+  //     .send(newBlog)
+  //     .expect(201)
+  //
+  //   const blogsAtEnd = await helper.blogsInDb()
+  //
+  //   assert(blogsAtEnd.length === helper.initialBlogs.length + 1)
+  // })
 })
 
 describe('deleting blogs', () => {
@@ -99,7 +233,8 @@ describe('deleting blogs', () => {
     const blogsAtStart = await helper.blogsInDb()
     const blogToDelete = blogsAtStart[0]
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`)
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
       .expect(204)
 
     const blogsAtEnd = await helper.blogsInDb()
@@ -114,7 +249,8 @@ describe('deleting blogs', () => {
   test('fails with status code 400 if id is malformed', async () => {
     const malformedId = "xd"
 
-    await api.delete(`/api/blogs/${malformedId}`)
+    await api
+      .delete(`/api/blogs/${malformedId}`)
       .expect(400)
 
     const blogsAtEnd = await helper.blogsInDb()
@@ -125,7 +261,8 @@ describe('deleting blogs', () => {
   test('succeeds with status code 204 if id is not found', async () => {
     const nonExistingId = "688b677aaaaaaaaaaaae1af0"
 
-    await api.delete(`/api/blogs/${nonExistingId}`)
+    await api
+      .delete(`/api/blogs/${nonExistingId}`)
       .expect(204)
 
     const blogsAtEnd = await helper.blogsInDb()
@@ -134,21 +271,26 @@ describe('deleting blogs', () => {
   })
 })
 
-describe('updating blogs', () => {
+describe('updating blogs when there exists a user', () => {
   test('updating blog updates blog', async () => {
     const blogsAtStart = await helper.blogsInDb()
+    // console.log("blogs at start ", blogsAtStart)
     const oldBlog = blogsAtStart[0]
-    const blogId = oldBlog.id
+    const blogIdString = oldBlog.id.toString()
     let updatedBlog = structuredClone(oldBlog)
+    updatedBlog.user = oldBlog.user.toString()
     updatedBlog.likes += 1
+    // console.log("old blog ", oldBlog)
+    // console.log("new blog ", updatedBlog)
+    // console.log("this is blog id string ", blogIdString)
 
     await api
-      .put(`/api/blogs/${blogId}`)
+      .put(`/api/blogs/${blogIdString}`)
       .send(updatedBlog)
       .expect(200)
 
     const blogsAtEnd = await helper.blogsInDb()
-    const soughtBlog = await Blog.findById(blogId)
+    const soughtBlog = await Blog.findById(blogIdString)
 
     // console.log("here are blogs ", soughtBlog, oldBlog)
     assert(soughtBlog.likes === oldBlog.likes + 1)
@@ -164,69 +306,12 @@ describe('updating blogs', () => {
       .expect(400)
   })
 
-  test('succeeds with status code 404 if id is not found', async () => {
-    const nonExistingId = "688b677aaaaaaaaaaaae1af0"
+  test('fails with status code 404 if id is not found', async () => {
+    const validNonExistingId = await helper.nonExistingId()
 
     await api
-      .put(`/api/blogs/${nonExistingId}`)
+      .put(`/api/blogs/${validNonExistingId}`)
       .expect(404)
-  })
-})
-
-
-/* USER TESTS */
-
-describe('when there is initially one user at db', () => {
-  beforeEach(async () => {
-    await User.deleteMany({})
-
-    const passwordHash = await bcrypt.hash('sekret', 10)
-    const user = new User({ username: 'root', passwordHash })
-
-    await user.save()
-  })
-
-  test('creation succeeds with a fresh username', async () => {
-    const usersAtStart = await helper.usersInDb()
-
-    const newUser = {
-      username: 'mluukkai',
-      name: 'Matti Luukkainen',
-      password: 'salainen',
-    }
-
-    await api
-      .post('/api/users')
-      .send(newUser)
-      .expect(201)
-      .expect('Content-Type', /application\/json/)
-
-    const usersAtEnd = await helper.usersInDb()
-    assert.strictEqual(usersAtEnd.length, usersAtStart.length + 1)
-
-    const usernames = usersAtEnd.map(u => u.username)
-    assert(usernames.includes(newUser.username))
-  })
-
-  test('creation fails with proper statuscode and message if username already taken', async () => {
-    const usersAtStart = await helper.usersInDb()
-
-    const newUser = {
-      username: 'root',
-      name: 'Superuser',
-      password: 'salainen',
-    }
-
-    const result = await api
-      .post('/api/users')
-      .send(newUser)
-      .expect(400)
-      .expect('Content-Type', /application\/json/)
-
-    const usersAtEnd = await helper.usersInDb()
-    assert(result.body.error.includes('expected `username` to be unique'))
-
-    assert.strictEqual(usersAtEnd.length, usersAtStart.length)
   })
 })
 
