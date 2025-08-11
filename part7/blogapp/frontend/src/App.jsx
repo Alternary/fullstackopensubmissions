@@ -7,7 +7,8 @@ import {
   BrowserRouter as Router,
   Routes, Route, Link, useParams
 } from 'react-router-dom'
-import { Table, Form, Button, Navbar, Nav } from 'react-bootstrap'
+import { Table, Form, Button, Navbar, Nav, ListGroup } from 'react-bootstrap'
+import { Container } from '@mui/material'
 
 import blogService from './services/blogs'
 import userService from './services/users'
@@ -113,7 +114,8 @@ const App = () => {
 
   const backgroundStyle = {
     background: "papayawhip",
-    padding: "7px"
+    padding: "7px",
+    paddingBottom: "99px"
   }
 
   if (!user2) {
@@ -136,7 +138,17 @@ const App = () => {
     padding: "7px"
   }
 
+  const tbodyStyle = {
+    background: "#DDDDDD"
+  }
+
+  const createBlogStyle = {
+    margin: "3px",
+    padding: "2px"
+  }
+
   return (
+    <Container>
     <div className="container" style={backgroundStyle}><Router>
       {/*<p>here is user2 {JSON.stringify(user2)}</p>*/}
       <div style={menuStyle} >
@@ -173,11 +185,14 @@ const App = () => {
       <Routes>
         <Route path="/blogs" element={
           <div>
+            <div style={createBlogStyle}>
             <Togglable buttonLabel="create new blog" ref={blogFormRef}>
               <NewBlog doCreate={handleCreate} />
             </Togglable>
+            </div>
+            <ListGroup as="ul" variant="flush">
             {/* blogs */[...blogs2].sort(byLikes).map(blog =>
-              <div key={blog.id}>
+              <ListGroup.Item variant="secondary" as="li" key={blog.id}>
                 <Link to={`/blogs/${blog.id}`}>{blog.title}</Link>
               {/*<Blog
                 key={blog.id}
@@ -185,19 +200,20 @@ const App = () => {
                 handleVote={handleVote}
                 handleDelete={handleDelete}
               />*/}
-              </div>
+              </ListGroup.Item>
             )}
+            </ListGroup>
           </div>
         } />
         <Route path="/users" element={
           <div>
             <h2>Users</h2>
-            <Table striped>
-              <tbody>
+            <Table bordered hover size="sm">
+              <tbody style={tbodyStyle}>
                 <tr><td></td><td><h3>blogs created</h3></td></tr>
               </tbody>
               {users.map(user =>
-                <tbody key={user.id}><tr>
+                <tbody key={user.id} style={tbodyStyle}><tr>
                   <td><Link to={`/users/${user.id}`}>{user.name}</Link></td>
                   <td>{user.blogs.length}</td>
                 </tr></tbody>
@@ -209,56 +225,14 @@ const App = () => {
         <Route path="/users/:id" element={<User users={users} />} />
       </Routes>
     </Router>
+    {/*<br></br>
     <br></br>
     <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
-    <br></br>
+    <br></br>*/}
     </div>
+    </Container>
   )
 }
-
-// const ViewBlog = ({ blogs }) => {
-//   const id = useParams().id
-//   const blog = blogs.find(b => b.id === id)
-//   if (!blog) {
-//     return null
-//   }
-//   return (
-//     <>
-//       <h1>{blog.title}</h1>
-//       <a href={blog.url}>{blog.url}</a>
-//       <br></br>
-//       {`${blog.likes} likes`}<button></button>
-//       <br></br>
-//       {`added by ${blog.user.name}`}
-//     </>
-//   )
-// }
 
 const User = ({ users }) => {
   const id = useParams().id
@@ -271,11 +245,11 @@ const User = ({ users }) => {
     <div>
       <h1>{user.name}</h1>
       <h2>added blogs</h2>
-      <ul>
+      <ListGroup as="ul">
         {user.blogs.map(blog =>
-          <li key={blog.id}>{blog.title}</li>
+          <ListGroup.Item variant="secondary" as="li" key={blog.id}>{blog.title}</ListGroup.Item>
         )}
-      </ul>
+      </ListGroup>
     </div>
   )
 }

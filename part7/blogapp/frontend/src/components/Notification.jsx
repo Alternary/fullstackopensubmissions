@@ -1,5 +1,8 @@
 import { useSelector } from 'react-redux'
 import notificationReducer, { setNotificationTimeout } from '../reducers/notificationReducer'
+// import { Alert } from 'react-bootstrap'
+import { Alert } from '@mui/material'
+
 const Notification = () => {
   const notification = useSelector(({ user, blogs, notification }) => notification)
 
@@ -19,9 +22,22 @@ const Notification = () => {
   }
 
   return (
-    <div style={style}>
+    <>
+    {/*<div style={style}>
       {message}
-    </div>
+    </div>*/}
+    {/*<Alert className={
+      type === 'success'
+      ? 'alert alert-success'
+      : 'alert alert-danger'
+    }>*/}
+    <Alert
+      variant="filled"
+      severity={type}
+    >
+      {message}
+    </Alert>
+    </>
   )
 }
 
