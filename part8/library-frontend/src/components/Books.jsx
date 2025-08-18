@@ -4,10 +4,12 @@ import { ALL_BOOKS, ALL_AUTHORS, ALL_BOOKS2 } from '../queries'
 
 const Books = (props) => {
   const [genre, setGenre] = useState('')
-  const result = useQuery(ALL_BOOKS, {
-    // variables: { genre },
-    pollInterval: 2000
-  })
+  const result = useQuery(ALL_BOOKS
+  // , {
+  //   // variables: { genre },
+  //   pollInterval: 2000
+  // }
+  )
 
   if (!props.show) {
     return null

@@ -1,16 +1,35 @@
 import { useState } from "react"
-import { useQuery, useApolloClient } from '@apollo/client'
+import { useQuery, useApolloClient, useSubscription } from '@apollo/client'
 import Authors from "./components/Authors"
 import Books from "./components/Books"
 import NewBook from "./components/NewBook"
 import Notify from './components/Notify'
 import LoginForm from './components/LoginForm'
-import { ALL_BOOKS, ALL_AUTHORS, ALL_BOOKS2, MY_FAVORITEGENRE } from './queries'
+import { ALL_BOOKS, ALL_AUTHORS, ALL_BOOKS2, MY_FAVORITEGENRE, BOOK_ADDED } from './queries'
+
+// function that takes care of manipulating cache
+export const updateCache = (cache, query, addedBook) => {
+  // helper that is used to eliminate saving same person twice
+  const uniqByName = (a) => {
+    let seen = new Set()
+    return a.filter((item) => {
+      let k = item.name
+      return seen.has(k) ? false : seen.add(k)
+    })
+  }
+
+  cache.updateQuery(query, ({ allBooks }) => {
+    return {
+      allBooks: uniqByName(allBooks.concat(addedBook)),
+    }
+  })
+}
 
 const App = () => {
   const [page, setPage] = useState("authors")
   const [token, setToken] = useState(null)
   const [errorMessage, setErrorMessage] = useState(null)
+  // const [newBookAlerter, setNewBookAlerter] = useState(null)
   const client = useApolloClient()
 
   const notify = (message) => {
@@ -25,6 +44,21 @@ const App = () => {
     localStorage.clear()
     client.resetStore()
   }
+
+  useSubscription(BOOK_ADDED, {
+    onData: ({ data }) => {
+      console.log(data)
+      window.alert(`book added with data ${JSON.stringify(data)}`)
+      const addedBook = data.data.bookAdded
+      // setNewBookAlerter(null)
+      // client.cache.updateQuery({ query: ALL_BOOKS }, ({ allBooks }) => {
+      //   return {
+      //     allBooks: allBooks.concat(addedBook),
+      //   }
+      // })
+      updateCache(client.cache, { query: ALL_BOOKS }, addedBook)
+    }
+  })
 
   if (!token && false) {
     return (
@@ -60,21 +94,11 @@ const App = () => {
 
       <Authors show={page === "authors"} />
 
-      <Books show={page === "books"} />
+      <Books show={page === "books"} /* newBookAlerter={newBookAlerter} */ />
 
       <NewBook show={page === "add"} />
 
       <Recommended show={page === "recommended"} />
-
-      {/*login form*/}
-      {/*page === "login" && <div>
-        <Notify errorMessage={errorMessage} />
-        <h2>Login</h2>
-        <LoginForm
-          setToken={setToken}
-          setError={notify}
-        />
-      </div>*/}
 
       {<Login show={page === "login"} errorMessage={errorMessage} setToken={setToken} setError={notify} />}
     </div>
