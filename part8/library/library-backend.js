@@ -27,6 +27,7 @@ const typeDefs = `
   type User {
     username: String!
     id: ID!
+    favoriteGenre: String
   }
 
   type Token {
@@ -66,9 +67,11 @@ const typeDefs = `
     editAuthor(
       name: String!
       setBornTo: Int!
+      favoriteGenres: [String]
     ): Author
     createUser(
       username: String!
+      favoriteGenre: String
     ): User
     login(
       username: String!
@@ -94,7 +97,6 @@ const resolvers = {
           const authorId = author._id.toString()
           const booksFilteredByAuthor = books
             .filter(book => book.author._id.toString() === authorId)
-          // throw new GraphQLError(`debugging, here is book author ids ${bookAuthorIds} and here is authorId ${authorId}`)
           return filterByGenre(booksFilteredByAuthor)
         }
         else {//no such author found
@@ -105,8 +107,6 @@ const resolvers = {
     },
     allAuthors: async () => {
       const authors = await Author.find({})
-      //somehow need to get bookCount for author
-      //could search all books and attach it
       return authors
     },
     me: (root, args, context) => {
@@ -161,16 +161,6 @@ const resolvers = {
       }
       return newBook
     },
-    // addBook: async (root, args) => {
-    //   authorNames = authors2.map(a => a.name)
-    //   if (! authorNames.includes(args.author)) {
-    //     newAuthor = { name: args.author, id: uuid() }
-    //     authors2 = authors2.concat(newAuthor)
-    //   }
-    //   const newBook = { ...args, id: uuid() }
-    //   books2 = books2.concat(newBook)
-    //   return newBook
-    // },
     editAuthor: async (root, args, context) => {
       const currentUser = context.currentUser
       if (!currentUser) {
@@ -202,17 +192,8 @@ const resolvers = {
       }
       return author
     },
-    // editAuthor: async (root, args) => {
-    //   const oldAuthor = authors2.find(a => a.name === args.name)
-    //   if (!oldAuthor) {
-    //     return null
-    //   }
-    //   const updatedAuthor = { ...oldAuthor, born: args.setBornTo }
-    //   authors2 = authors2.map(a => a.name === args.name ? updatedAuthor : a)
-    //   return updatedAuthor
-    // }
     createUser: async (root, args) => {
-      const user = new User({ username: args.username })
+      const user = new User({ username: args.username, favoriteGenre: args.favoriteGenre })
 
       return user.save()
         .catch(error => {
@@ -267,8 +248,3 @@ startStandaloneServer(server, {
 }).then(({ url }) => {
   console.log(`Server ready at ${url}`)
 })
-// startStandaloneServer(server, {
-//   listen: { port: 4000 },
-// }).then(({ url }) => {
-//   console.log(`Server ready at ${url}`)
-// })
