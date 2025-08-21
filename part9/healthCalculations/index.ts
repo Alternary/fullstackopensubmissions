@@ -1,8 +1,11 @@
 // const express = require('express');
 import express from 'express';
 const app = express();
+
 import calculateBmi from './bmiCalculator';
 import calculateExercises from './exerciseCalculator';
+
+app.use(express.json())
 
 app.get('/hello', (_req, res) => {
   res.send('Hello Full Stack!');
@@ -25,24 +28,30 @@ app.get('/bmi', (req, res) => {
 
 app.post('/exercises', (req, res) => {
   try {
+    console.log('here')
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { daily_exercises_val, target_val } = req.body;
+    console.log('here is req ', req)
+    console.log('here is body ', req.body)
+    const { daily_exercises, target } = req.body;
+    console.log(2)
 
     // if (!Array.isArray(daily_exercises_val)) {
     //   return res.status(400).send({ error: 'malformatted values' });
     // }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const daily_exercises = daily_exercises_val.map((x: unknown) => Number(x));
-    const target = Number(target_val);
+    const daily_exercises_nums = daily_exercises.map((x: unknown) => Number(x));
+    const target_num = Number(target);
+    console.log('in here')
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    if (!daily_exercises || !target || [...daily_exercises, target].includes(NaN)) {
+    if (!daily_exercises_nums || !target_num || [...daily_exercises_nums, target_num].includes(NaN)) {
       return res.status(400).send({ error: 'malformatted values' });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const result = calculateExercises(daily_exercises, target);
+    const result = calculateExercises(daily_exercises_nums, target_num);
+    console.log('and here')
     return res.send({ result });
   } catch {
     return res.status(400).send({ error: 'parameters missing or invalid' });
