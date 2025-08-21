@@ -28,31 +28,23 @@ app.get('/bmi', (req, res) => {
 
 app.post('/exercises', (req, res) => {
   try {
-    // console.log('here')
-     
-    // console.log('here is req ', req)
-    // console.log('here is body ', req.body)
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { daily_exercises, target } = req.body;
-    // console.log(2)
-
-    // if (!Array.isArray(daily_exercises_val)) {
-    //   return res.status(400).send({ error: 'malformatted values' });
-    // }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const daily_exercises_nums = daily_exercises.map((x: unknown) => Number(x));
     const target_num = Number(target);
-    // console.log('in here')
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    if (!daily_exercises_nums || !target_num || [...daily_exercises_nums, target_num].includes(NaN)) {
+    if ([...daily_exercises_nums, target_num].includes(NaN)) {
       return res.status(400).send({ error: 'malformatted values' });
+    }
+    if (!daily_exercises_nums || !target_num) {
+      return res.status(400).send({ error: 'parameters missing' });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const result = calculateExercises(daily_exercises_nums, target_num);
-    // console.log('and here')
     return res.send({ result });
   } catch {
     return res.status(400).send({ error: 'parameters missing or invalid' });
