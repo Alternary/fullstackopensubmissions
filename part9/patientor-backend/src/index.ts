@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { Patient, Gender, Diagnosis, NonSensitivePatient } from '../src/types';
 
 import { z } from 'zod';
 
@@ -10,17 +11,11 @@ app.use(express.json());
 app.use(cors());
 
 import diagnoses from '../data/diagnoses';
-import patients from '../data/patients';
+import patients from '../data/patients-full';
 
 app.get('/api/ping', (_req, res) => {
   res.send('pong');
 });
-
-interface Diagnosis {
-  code: string;
-  name: string;
-  latin?: string;
-}
 
 const getDiagnoses = (): Diagnosis[] => {
   return diagnoses;
@@ -31,21 +26,17 @@ app.get('/api/diagnoses', (_req,res) => {
   res.send(ds);
 });
 
-interface Patient {
-  id: string;
-  name: string;
-  dateOfBirth: string;
-  ssn: string;
-  gender: string;
-  occupation: string;
-}
-
-const getPatients = (): Omit<Patient, 'ssn'>[] => {
-  return patients.map(({ id, name, dateOfBirth, gender, occupation}) => ({
+const getPatients = (): NonSensitivePatient[] => {
+  return patients.map(({ id, name, dateOfBirth, gender, occupation }) => ({
+     
     id,
+     
     name,
+     
     dateOfBirth,
+     
     gender,
+     
     occupation,
   }));
 };
@@ -55,59 +46,26 @@ app.get('/api/patients', (_req,res) => {
   res.send(ps);
 });
 
-// const isString = (text: unknown): text is string => {
-//   return typeof text === 'string' || text instanceof String;
-// };
-
-// const parseName = (name: unknown): string => {
-//   // if (!isString(name)) {
-//   //   throw new Error('Incorrect or missing name');
-//   // }
-//   // return name;
-//   return z.string().parse(name);
-// };
-
-// const isDate = (date: string): boolean => {
-//   return Boolean(Date.parse(date));
-// };
-//
-// const parseDateOfBirth = (dateOfBirth: unknown): string => {
-//   if (!isString(dateOfBirth) || !isDate(dateOfBirth)) {
-//       throw new Error('Incorrect or missing date: ' + dateOfBirth);
-//   }
-//   return dateOfBirth;
-// };
-
-// const parseSsn = (ssn: unknown): string => {
-//   if (!isString(ssn)) {
-//     throw new Error('Incorrect or missing ssn: ' + ssn);
-//   }
-//   return ssn;
-// };
-
-enum Gender {
-  Male = 'male',
-  Female = 'female',
-  Other = 'other'
-}
-
-// const isGender = (param: string): param is Gender => {
-//   return Object.values(Gender).map(v => v.toString()).includes(param);
-// };
-//
-// const parseGender = (gender: unknown): string => {
-//   if (!isString(gender) || !isGender(gender)) {
-//     throw new Error('Incorrect or missing gender: ' + gender);
-//   }
-//   return gender;
-// };
-
-// const parseOccupation = (occupation: unknown): string => {
-//   if (!isString(occupation)) {
-//     throw new Error('Incorrect or missing occupation: ' + occupation);
-//   }
-//   return occupation;
-// };
+app.get('/api/patients/:id', (req,res) => {
+  const ps = patients
+    .map(({ id, name, dateOfBirth, ssn, gender, occupation, entries }) => ({
+       
+      id,
+       
+      name,
+       
+      dateOfBirth,
+       
+      ssn,
+       
+      gender,
+       
+      occupation,
+      entries
+    }))
+    .filter(p => p.id === req.params.id);
+  res.send(ps);
+});
 
 const toNewPatient = (object : unknown) : Patient => {
   if (!object || typeof object !== 'object') {
@@ -120,7 +78,8 @@ const toNewPatient = (object : unknown) : Patient => {
       dateOfBirth: z.string().date().parse(object.dateOfBirth),
       ssn: z.string().parse(object.ssn),
       gender: z.enum(Gender).parse(object.gender),
-      occupation: z.string().parse(object.occupation)
+      occupation: z.string().parse(object.occupation),
+      entries: []
     };
     return newPatient;
   }
